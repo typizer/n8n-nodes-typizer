@@ -26,4 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      # `prepublishOnly` (n8n-node prerelease) refuses a publish without RELEASE_MODE.
       - run: npm publish --provenance --access public
+        env:
+          RELEASE_MODE: 'true'
