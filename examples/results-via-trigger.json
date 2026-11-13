@@ -1,0 +1,51 @@
+{
+	"name": "Документы из кабинета Typizer → Telegram",
+	"nodes": [
+		{
+			"parameters": {
+				"content": "## Готовый документ → сообщение в Telegram\nЗагружайте документы в кабинете my.typizer.ru (по одному или пакетом) — как только Typizer обработал документ, бухгалтер получает сообщение с главным и предупреждением, если какое-то поле стоит проверить.\n\nTypizer Trigger регистрирует свой адрес в Typizer сам при активации сценария; адрес n8n должен быть публичным https.",
+				"height": 260,
+				"width": 420
+			},
+			"id": "3e8a0c55-9b1d-4f2a-a6c4-000000000001",
+			"name": "Как настроить",
+			"type": "n8n-nodes-base.stickyNote",
+			"typeVersion": 1,
+			"position": [-40, -300]
+		},
+		{
+			"parameters": {
+				"events": ["run.succeeded", "run.failed"],
+				"options": {}
+			},
+			"id": "3e8a0c55-9b1d-4f2a-a6c4-000000000002",
+			"name": "Typizer Trigger",
+			"type": "n8n-nodes-typizer.typizerTrigger",
+			"typeVersion": 1,
+			"position": [0, 0],
+			"webhookId": "3e8a0c55-9b1d-4f2a-a6c4-0000000000a2"
+		},
+		{
+			"parameters": {
+				"chatId": "ID_ЧАТА_БУХГАЛТЕРИИ",
+				"text": "={{ $json._typizer.status === 'failed' ? '❌ Не удалось обработать документ: ' + $json._typizer.error.message : '✅ ' + ($json.number ? 'Документ № ' + $json.number : 'Документ') + ($json.total ? ' на ' + $json.total + ' ₽' : '') + ($json._typizer.checks.all_ok ? '' : '\\n⚠️ Проверьте: ' + $json._typizer.checks.warnings.map(w => w.field).concat($json._typizer.checks.missing).join(', ')) }}\n{{ $json._typizer.cabinet_url }}",
+				"additionalFields": {
+					"appendAttribution": false
+				}
+			},
+			"id": "3e8a0c55-9b1d-4f2a-a6c4-000000000003",
+			"name": "Сообщение в Telegram",
+			"type": "n8n-nodes-base.telegram",
+			"typeVersion": 1.2,
+			"position": [260, 0]
+		}
+	],
+	"connections": {
+		"Typizer Trigger": {
+			"main": [[{ "node": "Сообщение в Telegram", "type": "main", "index": 0 }]]
+		}
+	},
+	"settings": {
+		"executionOrder": "v1"
+	}
+}

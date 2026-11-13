@@ -1,0 +1,190 @@
+{
+	"name": "Битрикс24: счёт из сделки → Typizer → поля сделки",
+	"nodes": [
+		{
+			"parameters": {
+				"content": "## Счёт в сделке Битрикс24 → поля сделки\nМенеджер прикладывает счёт в файловое поле сделки — номер, дата, ИНН поставщика и сумма заполняются сами, а в ленте сделки появляется комментарий со ссылкой на проверку.\n\n1. В Битрикс24: **Разработчикам → Другое → Входящий вебхук** (права: CRM) — адрес вида `https://ВАШ-ПОРТАЛ.bitrix24.ru/rest/1/КОД/`. Подставьте его в три HTTP-узла.\n2. **Исходящий вебхук** на событие `ONCRMDEALUPDATE` — адрес узла «Битрикс24: сделка изменена» (Production URL). Его «Токен приложения» впишите в узел «Это Битрикс24?».\n3. Создайте в сделке поля: файл `UF_CRM_INVOICE_FILE` и строки `UF_CRM_INVOICE_NUMBER`, `UF_CRM_INVOICE_DATE`, `UF_CRM_SUPPLIER_INN`, `UF_CRM_TYPIZER_RUN` (или замените коды на свои).\n4. Подключите **Typizer API** и активируйте сценарий.\n\nПоле `UF_CRM_TYPIZER_RUN` защищает от повторной обработки: сделка с заполненным полем пропускается.",
+				"height": 420,
+				"width": 520
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000001",
+			"name": "Как настроить",
+			"type": "n8n-nodes-base.stickyNote",
+			"typeVersion": 1,
+			"position": [-40, -460]
+		},
+		{
+			"parameters": {
+				"httpMethod": "POST",
+				"path": "typizer-bitrix24-deal",
+				"options": {}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000002",
+			"name": "Битрикс24: сделка изменена",
+			"type": "n8n-nodes-base.webhook",
+			"typeVersion": 2,
+			"position": [0, 0],
+			"webhookId": "7c2e4b1a-5d3f-4e60-8b7a-0000000000a2"
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"options": { "caseSensitive": true, "typeValidation": "loose" },
+					"conditions": [
+						{
+							"leftValue": "={{ $json.body.auth?.application_token ?? $json.body['auth[application_token]'] }}",
+							"rightValue": "ТОКЕН_ИСХОДЯЩЕГО_ВЕБХУКА",
+							"operator": { "type": "string", "operation": "equals" }
+						}
+					],
+					"combinator": "and"
+				},
+				"options": {}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000003",
+			"name": "Это Битрикс24?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2,
+			"position": [220, 0]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://ВАШ-ПОРТАЛ.bitrix24.ru/rest/1/КОД/crm.item.get",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ JSON.stringify({ entityTypeId: 2, id: $json.body.data?.FIELDS?.ID ?? $json.body['data[FIELDS][ID]'], useOriginalUfNames: 'Y' }) }}",
+				"options": {}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000004",
+			"name": "Сделка",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [440, -20]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"options": { "caseSensitive": true, "typeValidation": "loose" },
+					"conditions": [
+						{
+							"leftValue": "={{ [].concat($json.result.item.UF_CRM_INVOICE_FILE ?? [])[0]?.urlMachine ?? '' }}",
+							"rightValue": "",
+							"operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+						},
+						{
+							"leftValue": "={{ $json.result.item.UF_CRM_TYPIZER_RUN ?? '' }}",
+							"rightValue": "",
+							"operator": { "type": "string", "operation": "empty", "singleValue": true }
+						}
+					],
+					"combinator": "and"
+				},
+				"options": {}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000005",
+			"name": "Есть счёт, ещё не разобран?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2,
+			"position": [660, -20]
+		},
+		{
+			"parameters": {
+				"url": "={{ [].concat($json.result.item.UF_CRM_INVOICE_FILE)[0].urlMachine }}",
+				"options": {
+					"response": {
+						"response": {
+							"responseFormat": "file"
+						}
+					}
+				}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000006",
+			"name": "Скачать счёт",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [880, -40]
+		},
+		{
+			"parameters": {
+				"resource": "document",
+				"operation": "extract",
+				"binaryPropertyName": "data",
+				"documentSource": "preset",
+				"preset": "schet-na-oplatu",
+				"waitForResult": true,
+				"options": {
+					"metadata": {
+						"values": [
+							{
+								"key": "bitrix24_deal_id",
+								"value": "={{ $('Сделка').item.json.result.item.id }}"
+							}
+						]
+					}
+				}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000007",
+			"name": "Typizer",
+			"type": "n8n-nodes-typizer.typizer",
+			"typeVersion": 1,
+			"position": [1100, -40]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://ВАШ-ПОРТАЛ.bitrix24.ru/rest/1/КОД/crm.deal.update",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ JSON.stringify({ id: $json._typizer.metadata.bitrix24_deal_id, fields: { UF_CRM_INVOICE_NUMBER: $json.number, UF_CRM_INVOICE_DATE: $json.date, UF_CRM_SUPPLIER_INN: $json.supplier?.inn, OPPORTUNITY: $json.total, UF_CRM_TYPIZER_RUN: $json._typizer.run_id } }) }}",
+				"options": {}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000008",
+			"name": "Заполнить поля сделки",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [1320, -120]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://ВАШ-ПОРТАЛ.bitrix24.ru/rest/1/КОД/crm.timeline.comment.add",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ JSON.stringify({ fields: { ENTITY_ID: $('Typizer').item.json._typizer.metadata.bitrix24_deal_id, ENTITY_TYPE: 'deal', COMMENT: 'Typizer разобрал счёт № ' + $('Typizer').item.json.number + ' на ' + $('Typizer').item.json.total + ' ₽.' + ($('Typizer').item.json._typizer.checks.all_ok ? '' : ' Проверьте поля: ' + $('Typizer').item.json._typizer.checks.warnings.map(w => w.field).concat($('Typizer').item.json._typizer.checks.missing).join(', ') + '.') + ' Документ: ' + $('Typizer').item.json._typizer.cabinet_url } }) }}",
+				"options": {}
+			},
+			"id": "7c2e4b1a-5d3f-4e60-8b7a-000000000009",
+			"name": "Комментарий в ленту сделки",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [1540, -120]
+		}
+	],
+	"connections": {
+		"Битрикс24: сделка изменена": {
+			"main": [[{ "node": "Это Битрикс24?", "type": "main", "index": 0 }]]
+		},
+		"Это Битрикс24?": {
+			"main": [[{ "node": "Сделка", "type": "main", "index": 0 }], []]
+		},
+		"Сделка": {
+			"main": [[{ "node": "Есть счёт, ещё не разобран?", "type": "main", "index": 0 }]]
+		},
+		"Есть счёт, ещё не разобран?": {
+			"main": [[{ "node": "Скачать счёт", "type": "main", "index": 0 }], []]
+		},
+		"Скачать счёт": {
+			"main": [[{ "node": "Typizer", "type": "main", "index": 0 }]]
+		},
+		"Typizer": {
+			"main": [[{ "node": "Заполнить поля сделки", "type": "main", "index": 0 }]]
+		},
+		"Заполнить поля сделки": {
+			"main": [[{ "node": "Комментарий в ленту сделки", "type": "main", "index": 0 }]]
+		}
+	},
+	"settings": {
+		"executionOrder": "v1"
+	}
+}
