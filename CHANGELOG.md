@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Published from GitHub Actions with npm provenance. No changes in the nodes.
+
 ## 0.1.0
 
 - Typizer node: extract data from a document (ready-made document types from typizer.ru, your

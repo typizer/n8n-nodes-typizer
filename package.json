@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-typizer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "n8n nodes for Typizer: extract structured data from invoices, UPD, acts, contracts and any other document (PDF, scans, photos) into JSON",
   "license": "MIT",
   "homepage": "https://docs.typizer.ru/how-to/n8n",
